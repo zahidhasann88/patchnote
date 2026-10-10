@@ -17,6 +17,9 @@ __all__ = ["commit", "git", "tag"]
 def isolated_service_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in (
         "GITHUB_REPOSITORY",
+        "GITHUB_REF",
+        "GITHUB_REF_NAME",
+        "GITHUB_REF_TYPE",
         "GITHUB_TOKEN",
         "PATCHNOTE_TOKEN",
         "OPENAI_API_KEY",
