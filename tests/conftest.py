@@ -13,6 +13,19 @@ from tests.gitutil import commit, git, tag
 __all__ = ["commit", "git", "tag"]
 
 
+@pytest.fixture(autouse=True)
+def isolated_service_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in (
+        "GITHUB_REPOSITORY",
+        "GITHUB_TOKEN",
+        "PATCHNOTE_TOKEN",
+        "OPENAI_API_KEY",
+        "PATCHNOTE_AI_BASE_URL",
+        "PATCHNOTE_AI_MODEL",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
 @pytest.fixture
 def repo(tmp_path: Path) -> Path:
     root = tmp_path / "repo"
