@@ -1,0 +1,104 @@
+{
+  "version": "1.4.0",
+  "from_ref": "v1.3.0",
+  "to_ref": "v1.4.0",
+  "date": "2026-10-10",
+  "sections": {
+    "Added": [
+      {
+        "id": "pr-1",
+        "summary": "Add widgets",
+        "original_summary": "feat: add widgets",
+        "section": "Added",
+        "scope": "core",
+        "pr_number": 1,
+        "pr_url": "https://github.com/acme/w/pull/1",
+        "authors": [
+          "@ada"
+        ],
+        "hashes": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ],
+        "short_hashes": [
+          "aaaaaaa"
+        ],
+        "breaking": false,
+        "breaking_description": null,
+        "confidence": "high",
+        "source": "conventional",
+        "labels": [],
+        "first_time_contributors": [],
+        "linked_issues": []
+      }
+    ],
+    "Fixed": [
+      {
+        "id": "sha-bbbbbbb",
+        "summary": "Fix crash on empty input",
+        "original_summary": "fix the crash on empty input",
+        "section": "Fixed",
+        "scope": null,
+        "pr_number": null,
+        "pr_url": null,
+        "authors": [
+          "Ada"
+        ],
+        "hashes": [
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        ],
+        "short_hashes": [
+          "bbbbbbb"
+        ],
+        "breaking": false,
+        "breaking_description": null,
+        "confidence": "low",
+        "source": "heuristic",
+        "labels": [],
+        "first_time_contributors": [],
+        "linked_issues": []
+      }
+    ]
+  },
+  "breaking": [
+    {
+      "id": "pr-2",
+      "summary": "Remove the v1 endpoint",
+      "original_summary": "feat!: remove the v1 endpoint",
+      "section": "Breaking Changes",
+      "scope": null,
+      "pr_number": 2,
+      "pr_url": "https://github.com/acme/w/pull/2",
+      "authors": [
+        "@ada"
+      ],
+      "hashes": [
+        "cccccccccccccccccccccccccccccccccccccccc"
+      ],
+      "short_hashes": [
+        "ccccccc"
+      ],
+      "breaking": true,
+      "breaking_description": "Clients must call v2",
+      "confidence": "high",
+      "source": "conventional",
+      "labels": [],
+      "first_time_contributors": [],
+      "linked_issues": []
+    }
+  ],
+  "contributors": [
+    {
+      "login": "ada",
+      "name": "@ada",
+      "email": null,
+      "first_time": true,
+      "pr_count": 0
+    }
+  ],
+  "compare_url": "https://github.com/acme/w/compare/v1.3.0...v1.4.0",
+  "previous_tag": null,
+  "repository_url": "https://github.com/acme/w",
+  "overview": null,
+  "style": "keepachangelog",
+  "tag_name": null
+}
