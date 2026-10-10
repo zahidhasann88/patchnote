@@ -11,7 +11,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [
-    { name = "YOUR NAME" },
+    { name = "Zahid Hasan", email = "jahidhasann67@gmail.com" },
 ]
 keywords = [
     "changelog",
@@ -36,7 +36,7 @@ dependencies = [
     "typer>=0.12",
     "rich>=13.7",
     "httpx>=0.27",
-    "pydantic>=2.7",
+    "pydantic>=2.7,<3",
     "pyyaml>=6.0",
     "jinja2>=3.1",
 ]
@@ -51,14 +51,15 @@ dev = [
     "pre-commit>=3.7",
     "types-pyyaml>=6.0",
     "build>=1.2",
+    "twine>=6",
 ]
 
 [project.urls]
-Homepage = "https://github.com/YOUR_NAME/patchnote"
-Documentation = "https://github.com/YOUR_NAME/patchnote#readme"
-Issues = "https://github.com/YOUR_NAME/patchnote/issues"
-Source = "https://github.com/YOUR_NAME/patchnote"
-Changelog = "https://github.com/YOUR_NAME/patchnote/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/zahidhasann88/patchnote"
+Documentation = "https://github.com/zahidhasann88/patchnote#readme"
+Issues = "https://github.com/zahidhasann88/patchnote/issues"
+Source = "https://github.com/zahidhasann88/patchnote"
+Changelog = "https://github.com/zahidhasann88/patchnote/blob/main/CHANGELOG.md"
 
 [project.scripts]
 patchnote = "patchnote.cli:app"
@@ -71,6 +72,7 @@ include = [
     "/src",
     "/tests",
     "/examples",
+    "/tools",
     "/README.md",
     "/LICENSE",
     "/CHANGELOG.md",
@@ -78,7 +80,7 @@ include = [
 ]
 
 [tool.ruff]
-src = ["src", "tests"]
+src = ["src", "tests", "tools"]
 line-length = 100
 target-version = "py310"
 
@@ -104,6 +106,10 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["N802", "N803", "RUF001"]
 "src/patchnote/cli.py" = ["B008"]
+"tools/**" = ["N802", "RUF001"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["patchnote", "tests"]
 
 [tool.ruff.format]
 quote-style = "double"

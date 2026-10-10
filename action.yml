@@ -1,6 +1,6 @@
 name: Patchnote
 description: Generate changelogs and release notes from git history and pull requests.
-author: YOUR NAME
+author: Zahid Hasan
 branding:
   icon: file-text
   color: purple
@@ -47,7 +47,7 @@ inputs:
     required: false
     default: "false"
   draft:
-    description: Leave the GitHub Release as a draft (ignored unless create-release is true).
+    description: Draft setting for compatibility; publish must be true to publish a release.
     required: false
     default: "true"
   config-path:
@@ -90,7 +90,7 @@ runs:
   using: composite
   steps:
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: "3.12"
 

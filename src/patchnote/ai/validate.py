@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 
@@ -17,6 +18,8 @@ def _as_dict(raw: Any) -> dict[str, Any]:
 
 def validate_polish(original: list[dict[str, Any]], raw: Any) -> list[dict[str, str]]:
     data = _as_dict(raw)
+    if set(data) != {"entries"}:
+        raise ValidationFailure("polish response must contain only entries")
     entries = data.get("entries")
     if not isinstance(entries, list):
         raise ValidationFailure("missing entries array")
@@ -30,11 +33,8 @@ def validate_polish(original: list[dict[str, Any]], raw: Any) -> list[dict[str, 
     for index, item in enumerate(entries):
         if not isinstance(item, dict):
             raise ValidationFailure(f"entry {index} is not an object")
-        extra_keys = set(item.keys()) - {"id", "summary"}
-        # Allow a few harmless keys but reject anything that looks like a new entry field.
-        forbidden = extra_keys & {"pr_number", "hashes", "section", "entries", "overview"}
-        if forbidden:
-            raise ValidationFailure(f"entry {index} has forbidden keys: {sorted(forbidden)}")
+        if set(item) != {"id", "summary"}:
+            raise ValidationFailure(f"entry {index} must contain only id and summary")
         ident = item.get("id")
         summary = item.get("summary")
         if not isinstance(ident, str) or not ident:
@@ -52,6 +52,15 @@ def validate_polish(original: list[dict[str, Any]], raw: Any) -> list[dict[str, 
         # clearly tries to add extra bullets or PR numbers not in the source.
         if "\n-" in summary or summary.strip().startswith("- "):
             raise ValidationFailure(f"entry {ident} summary looks like extra markdown bullets")
+        if any(ord(char) < 32 for char in summary) or len(summary) > 1000:
+            raise ValidationFailure("summary must be a short single line")
+        original_numbers = set(re.findall(r"#(\d+)", str(original[index].get("summary", ""))))
+        if original[index].get("pr_number") is not None:
+            original_numbers.add(str(original[index]["pr_number"]))
+        if not set(re.findall(r"#(\d+)", summary)) <= original_numbers:
+            raise ValidationFailure("summary introduced a new PR or issue reference")
+        if summary.lstrip().startswith(("#", "* ", "+ ", ">", "<")):
+            raise ValidationFailure("summary must not add markdown blocks or HTML")
         rewritten.append({"id": ident, "summary": summary.strip()})
     if seen != original_ids:
         raise ValidationFailure("ids do not match the input set")
@@ -60,12 +69,14 @@ def validate_polish(original: list[dict[str, Any]], raw: Any) -> list[dict[str, 
 
 def validate_summary(raw: Any) -> str:
     data = _as_dict(raw)
-    if "entries" in data:
-        raise ValidationFailure("summary response must not include entries")
+    if set(data) != {"overview"}:
+        raise ValidationFailure("summary response must contain only overview")
     overview = data.get("overview")
     if not isinstance(overview, str) or not overview.strip():
         raise ValidationFailure("missing overview string")
     text = overview.strip()
+    if any(ord(char) < 32 for char in text) or text.startswith(("#", "- ", "* ", "+ ", "<")):
+        raise ValidationFailure("overview must be plain single-line text")
     sentences = [
         part for part in text.replace("!", ".").replace("?", ".").split(".") if part.strip()
     ]

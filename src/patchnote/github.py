@@ -6,7 +6,7 @@ import os
 import re
 from collections.abc import Callable
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import httpx
 
@@ -30,14 +30,16 @@ def parse_github_nwo(url: str) -> tuple[str, str] | None:
     if re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", text):
         owner, repo = text.split("/", 1)
         return owner, repo.removesuffix(".git")
-    match = GITHUB_REMOTE_RE.search(text.replace("ssh://", ""))
-    if match:
-        return match.group("owner"), match.group("repo")
-    parsed = urlparse(text)
-    if parsed.hostname and "github.com" in parsed.hostname.lower():
-        parts = [p for p in parsed.path.split("/") if p]
-        if len(parts) >= 2:
-            return parts[0], parts[1].removesuffix(".git")
+    if text.lower().startswith("git@github.com:"):
+        return parse_github_nwo(text.split(":", 1)[1])
+    try:
+        parsed = urlparse(text)
+        if parsed.hostname and parsed.hostname.lower() in {"github.com", "www.github.com"}:
+            parts = [p for p in parsed.path.split("/") if p]
+            if len(parts) == 2:
+                return parse_github_nwo("/".join(parts))
+    except ValueError:
+        return None
     return None
 
 
@@ -46,7 +48,8 @@ def repository_http_url(owner: str, repo: str) -> str:
 
 
 def compare_url(owner: str, repo: str, from_ref: str, to_ref: str) -> str:
-    return f"https://github.com/{owner}/{repo}/compare/{from_ref}...{to_ref}"
+    left, right = quote(from_ref, safe=""), quote(to_ref, safe="")
+    return f"https://github.com/{owner}/{repo}/compare/{left}...{right}"
 
 
 def pr_url(owner: str, repo: str, number: int) -> str:
@@ -136,7 +139,11 @@ class GitHubClient:
             return []
         if not isinstance(payload, list):
             return []
-        return [self._pr_from_rest(item) for item in payload if isinstance(item, dict)]
+        return [
+            self._pr_from_rest(item)
+            for item in payload
+            if isinstance(item, dict) and ("merged_at" not in item or item["merged_at"])
+        ]
 
     def _pr_from_rest(self, item: dict[str, Any]) -> PullRequest:
         labels_raw = item.get("labels") or []
@@ -212,7 +219,7 @@ class GitHubClient:
             pulls: list[PullRequest] = []
             if isinstance(pr_nodes, list):
                 for raw in pr_nodes:
-                    if isinstance(raw, dict):
+                    if isinstance(raw, dict) and ("mergedAt" not in raw or raw["mergedAt"]):
                         pulls.append(self._pr_from_graphql(raw))
             result[sha] = pulls
         return result
@@ -336,11 +343,11 @@ class GitHubClient:
                 url = f"{self.api_url}/repos/{self.owner}/{self.repo}/releases"
                 response = self._http.post(url, headers=headers, json=payload, timeout=30.0)
         except httpx.HTTPError as exc:
-            raise RuntimeNetworkError(f"Failed to publish GitHub release: {exc}") from exc
-        if response.status_code >= 400:
             raise RuntimeNetworkError(
-                f"GitHub release API returned {response.status_code}: {response.text[:300]}"
-            )
+                f"Failed to publish GitHub release: {type(exc).__name__}"
+            ) from exc
+        if response.status_code >= 400:
+            raise RuntimeNetworkError(f"GitHub release API returned {response.status_code}")
         try:
             data = response.json()
         except ValueError as exc:
@@ -377,5 +384,5 @@ def enrich_or_empty(
     try:
         return client.enrich_commits(commits)
     except Exception as exc:
-        (warn or (lambda _m: None))(f"GitHub enrichment failed: {exc}")
+        (warn or (lambda _m: None))(f"GitHub enrichment failed: {type(exc).__name__}")
         return {}

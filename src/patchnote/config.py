@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import Any
 
@@ -146,6 +147,13 @@ class AiConfig(BaseModel):
     cache_dir: str = ".patchnote-cache"
     temperature: float = 0.2
     timeout_seconds: float = 60.0
+
+    @field_validator("timeout_seconds")
+    @classmethod
+    def _timeout_positive(cls, value: float) -> float:
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError("timeout_seconds must be positive and finite")
+        return value
 
     @field_validator("temperature")
     @classmethod
@@ -292,7 +300,7 @@ def load_yaml_file(path: Path) -> dict[str, Any]:
     try:
         data = yaml.safe_load(text)
     except yaml.YAMLError as exc:
-        raise ConfigError(f"Cannot parse YAML in {path}: {exc}") from exc
+        raise ConfigError(f"Cannot parse YAML in {path}: invalid YAML syntax") from exc
     if data is None:
         return {}
     if not isinstance(data, dict):
@@ -328,12 +336,15 @@ def load_config(repo: Path, explicit: Path | None = None) -> Config:
     path = find_config_path(repo, explicit)
     if path is None:
         return parse_config({})
-    return parse_config(load_yaml_file(path))
+    config = parse_config(load_yaml_file(path))
+    if config.template and not Path(config.template).is_absolute():
+        config.template = str((path.parent / config.template).resolve())
+    return config
 
 
 INIT_YAML = """\
 # Patchnote configuration
-# https://github.com/YOUR_NAME/patchnote
+# https://github.com/zahidhasann88/patchnote
 #
 # All keys are optional. Uncomment and edit to override defaults.
 
@@ -345,7 +356,7 @@ INIT_YAML = """\
 # tag_pattern: "v*"
 
 # Override the GitHub repository (owner/name). Auto-detected from `origin`.
-# repository: YOUR_NAME/patchnote
+# repository: zahidhasann88/patchnote
 
 # Conventional types and PR labels mapped into changelog sections.
 # Labels take precedence over the conventional type of a commit.

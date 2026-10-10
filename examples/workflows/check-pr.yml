@@ -22,28 +22,45 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
-      - name: Install patchnote
-        run: python -m pip install patchnote
+      - name: Install Patchnote
+        run: python -m pip install "patchnote==0.1.0"
+
+      - name: Check PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import datetime, timezone
+          from patchnote.check import run_check
+          from patchnote.config import parse_config
+          from patchnote.model import Commit
+          title = Commit(hash="0" * 40, short_hash="0" * 7, author_name="", author_email="", author_date=datetime.now(timezone.utc), subject=os.environ["PR_TITLE"])
+          run_check([title], parse_config({}))
+          PY
 
       - name: Check commit messages on this PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: patchnote check --from "origin/${{ github.base_ref }}" --to HEAD
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: patchnote check --from "$BASE_SHA" --to HEAD
 
       - name: Preview changelog
         id: preview
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          notes=$(patchnote generate --from "origin/${{ github.base_ref }}" --to HEAD)
+          notes=$(patchnote generate --from "$BASE_SHA" --to HEAD)
           delimiter="EOF_$(python -c 'import secrets; print(secrets.token_hex(8))')"
           {
             echo "notes<<$delimiter"
@@ -71,7 +88,7 @@ jobs:
               repo: context.repo.repo,
               issue_number: context.issue.number,
             });
-            const existing = comments.find(c => c.body && c.body.includes('<!-- patchnote-preview -->'));
+            const existing = comments.find(c => c.user.type === 'Bot' && c.body && c.body.includes('<!-- patchnote-preview -->'));
             if (existing) {
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,

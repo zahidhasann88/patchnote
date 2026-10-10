@@ -25,9 +25,9 @@ class Cache:
 
     def get(self, key: str) -> Any | None:
         path = self.path_for(key)
-        if not path.is_file():
-            return None
         try:
+            if not path.is_file():
+                return None
             return json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return None

@@ -158,6 +158,7 @@ class ChangelogEntry(BaseModel):
     id: str
     summary: str
     original_summary: str
+    pr_body: str | None = Field(default=None, exclude=True)
     section: str
     scope: str | None = None
     pr_number: int | None = None
@@ -185,6 +186,8 @@ class ChangelogEntry(BaseModel):
         }
         if include_bodies:
             payload["original_summary"] = self.original_summary
+            if self.pr_body:
+                payload["pr_body"] = self.pr_body
         return payload
 
 

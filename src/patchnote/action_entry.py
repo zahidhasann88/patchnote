@@ -41,15 +41,16 @@ def _count_entries(markdown: str) -> int:
 def build_argv(environ: dict[str, str] | None = None) -> list[str]:
     """Translate action inputs (env vars) into a ``patchnote generate`` argv."""
     env = environ if environ is not None else os.environ
-    argv: list[str] = ["generate", "--yes"]
+    argv: list[str] = []
+    if env.get("PATCHNOTE_CONFIG", "").strip():
+        argv.extend(["--config", env["PATCHNOTE_CONFIG"].strip()])
+    argv.extend(["generate", "--yes"])
     mapping = {
         "PATCHNOTE_FROM": "--from",
         "PATCHNOTE_TO": "--to",
         "PATCHNOTE_VERSION": "--version",
         "PATCHNOTE_STYLE": "--style",
         "PATCHNOTE_OUTPUT": "--output",
-        "PATCHNOTE_CONFIG": "--config",
-        "PATCHNOTE_TOKEN": "--token",
     }
     for env_name, flag in mapping.items():
         value = env.get(env_name, "").strip()
@@ -70,18 +71,21 @@ def build_argv(environ: dict[str, str] | None = None) -> list[str]:
 
 def run_action(environ: dict[str, str] | None = None) -> int:
     env = dict(os.environ if environ is None else environ)
-    # Honour action-specific env without interpolating into a shell.
-    if env.get("PATCHNOTE_AI_BASE_URL"):
-        # Config override via env is applied in CLI through PATCHNOTE_AI_* .
-        pass
+    previous_env = dict(os.environ)
+    os.environ.clear()
+    os.environ.update(env)
+    if env.get("PATCHNOTE_TOKEN"):
+        os.environ["GITHUB_TOKEN"] = env["PATCHNOTE_TOKEN"]
     output_path = env.get("GITHUB_OUTPUT", "")
     workspace = Path(env.get("GITHUB_WORKSPACE") or env.get("PATCHNOTE_REPO") or ".")
     previous_cwd = Path.cwd()
-    os.chdir(workspace)
     try:
+        os.chdir(workspace)
         return _run_action_in_workspace(env, output_path)
     finally:
         os.chdir(previous_cwd)
+        os.environ.clear()
+        os.environ.update(previous_env)
 
 
 def _exit_code(value: object) -> int:
@@ -93,8 +97,13 @@ def _exit_code(value: object) -> int:
 
 
 def _run_action_in_workspace(env: dict[str, str], output_path: str) -> int:
+    from patchnote import cli as cli_mod
     from patchnote.cli import app
 
+    cli_mod.LAST_RENDERED = ""
+    cli_mod.LAST_CHANGELOG = None
+    if env.get("GITHUB_REF_TYPE") == "tag" and not env.get("PATCHNOTE_TO"):
+        env["PATCHNOTE_TO"] = env.get("GITHUB_REF_NAME", "HEAD")
     argv = build_argv(env)
     try:
         result = app(args=argv, standalone_mode=False)
@@ -108,16 +117,8 @@ def _run_action_in_workspace(env: dict[str, str], output_path: str) -> int:
     except SystemExit as exc:
         return _exit_code(exc.code)
 
-    changelog_text = ""
-    out_file = env.get("PATCHNOTE_OUTPUT", "").strip()
-    if out_file:
-        path = Path(out_file)
-        if path.is_file():
-            changelog_text = path.read_text(encoding="utf-8")
-    else:
-        from patchnote import cli as cli_mod
-
-        changelog_text = cli_mod.LAST_RENDERED or ""
+    changelog_text = cli_mod.LAST_RENDERED or ""
+    count = cli_mod.LAST_CHANGELOG.entry_count if cli_mod.LAST_CHANGELOG else 0
 
     release_url = ""
     create_release = _truthy(env.get("PATCHNOTE_CREATE_RELEASE", ""))
@@ -135,7 +136,7 @@ def _run_action_in_workspace(env: dict[str, str], output_path: str) -> int:
         dest.parent.mkdir(parents=True, exist_ok=True)
         _write_output(dest, "changelog", changelog_text)
         _write_output(dest, "release-url", release_url)
-        _write_output(dest, "unreleased-entries", str(_count_entries(changelog_text)))
+        _write_output(dest, "unreleased-entries", str(count))
     return 0
 
 

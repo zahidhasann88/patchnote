@@ -7,7 +7,7 @@ from collections.abc import Callable
 from datetime import date, datetime, timezone
 
 from patchnote.config import Config
-from patchnote.conventional import strip_pr_suffix
+from patchnote.conventional import parse_commit, strip_pr_suffix
 from patchnote.filters import (
     collapse_reverts,
     dedupe_by_pr,
@@ -109,6 +109,16 @@ def classify_one(
     *,
     include_all: bool = False,
 ) -> ChangelogEntry | None:
+    if pr is not None and pr.title.strip():
+        titled = parse_commit(parsed.raw.model_copy(update={"subject": pr.title, "body": ""}))
+        if titled.is_conventional:
+            parsed = titled.model_copy(
+                update={
+                    "breaking": parsed.breaking or titled.breaking,
+                    "footers": parsed.footers,
+                    "pr_numbers": parsed.pr_numbers,
+                }
+            )
     labels = list(pr.labels) if pr is not None else []
     label_section = _label_section(labels, config)
     type_section = _type_section(parsed.type, config)
@@ -119,14 +129,15 @@ def classify_one(
         and not include_all
         and label_section is None
     )
-    if skip_by_type:
-        return None
 
     breaking = parsed.breaking or any(item.breaking for item in group)
     if pr is not None:
         lowered_labels = {label.lower() for label in pr.labels}
         if lowered_labels & {"breaking", "breaking-change", "breaking change"}:
             breaking = True
+
+    if skip_by_type and not breaking:
+        return None
 
     if label_section and label_section.lower() not in {"breaking changes", "breaking"}:
         section = label_section
@@ -147,7 +158,10 @@ def classify_one(
     if breaking:
         section = config.breaking_section
 
-    summary_source = pr.title if pr is not None and pr.title.strip() else parsed.description
+    summary_source = parsed.description
+    if pr is not None and pr.title.strip():
+        title_parsed = parse_commit(parsed.raw.model_copy(update={"subject": pr.title, "body": ""}))
+        summary_source = title_parsed.description
     summary = clean_summary(summary_source, config)
 
     breaking_description = None
@@ -182,7 +196,8 @@ def classify_one(
     return ChangelogEntry(
         id=identity,
         summary=summary,
-        original_summary=summary_source.strip(),
+        original_summary=(pr.title if pr is not None else parsed.raw.subject).strip(),
+        pr_body=pr.body if pr is not None else None,
         section=section,
         scope=scope,
         pr_number=pr_number,
@@ -289,11 +304,14 @@ def build_changelog(
                 ]
             entries.append(entry)
 
-    bot_entry = collapse_bot_entries(bots, config)
+    bot_entry = collapse_bot_entries(bots, config) if not include_all else None
     if bot_entry is not None:
         entries.append(bot_entry)
     elif bots and (include_all or not config.bots.collapse):
+        existing_hashes = {sha for entry in entries for sha in entry.hashes}
         for bot in bots:
+            if bot.raw.hash in existing_hashes:
+                continue
             entry = classify_one(bot, config, None, [bot], include_all=True)
             if entry is not None:
                 entry.source = EntrySource.BOT

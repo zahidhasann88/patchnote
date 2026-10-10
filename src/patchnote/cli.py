@@ -32,8 +32,8 @@ from patchnote.gitlog import (
     GitRunner,
     create_tag,
     discover_repo,
-    latest_tag,
     list_commits,
+    list_tags,
     ref_exists,
     remote_url,
     tag_date,
@@ -135,7 +135,7 @@ def die(exc: BaseException) -> None:
         raise typer.Exit(exc.exit_code)
     if state.verbose:
         raise exc
-    state.err.print(f"[error]error:[/error] {exc}")
+    state.err.print(f"error: {type(exc).__name__}; use --verbose for details", markup=False)
     raise typer.Exit(3)
 
 
@@ -176,7 +176,13 @@ def resolve_range(
             raise UsageError(f"Unknown git ref: {from_ref}")
         prev = from_ref
     else:
-        prev = latest_tag(runner, config.tag_pattern)
+        prev = None
+        for candidate in list_tags(runner, config.tag_pattern):
+            if to_name != "HEAD" and candidate == to_name:
+                continue
+            if runner.run_ok(["merge-base", "--is-ancestor", candidate, to_name]):
+                prev = candidate
+                break
     return prev, to_name, prev
 
 
@@ -308,7 +314,10 @@ def generate_changelog(
                         logins.add(pr.author)
                     current_prs.add(pr.number)
             if logins:
-                first_time = gh.first_time_contributors(logins, current_prs)
+                try:
+                    first_time = gh.first_time_contributors(logins, current_prs)
+                except (ValueError, TypeError, KeyError, AttributeError):
+                    warn("Could not determine first-time contributors; keeping commit notes")
     finally:
         if owns_http:
             client_http.close()
@@ -355,6 +364,12 @@ def generate_changelog(
 
     if ai_mode is not AiMode.NONE:
         include_bodies = ai_include_bodies or config.ai.include_bodies
+        config.ai = config.ai.model_copy(
+            update={
+                "base_url": os.environ.get("PATCHNOTE_AI_BASE_URL") or config.ai.base_url,
+                "model": os.environ.get("PATCHNOTE_AI_MODEL") or config.ai.model,
+            }
+        )
         if confirm_ai(config, ai_mode, yes=yes, include_bodies=include_bodies):
             api_key = os.environ.get(config.ai.api_key_env)
             # Also accept a generic override used by the GitHub Action.
@@ -403,7 +418,7 @@ def emit(
     text = render(changelog, config, fmt)
     LAST_RENDERED = text
     if dry_run:
-        state.console.print(text, end="" if text.endswith("\n") else "\n")
+        typer.echo(text, nl=not text.endswith("\n"))
         return text
     if output is not None:
         if prepend:
@@ -416,7 +431,7 @@ def emit(
             output.write_text(text, encoding="utf-8")
             state.err.print(f"[ok]wrote[/ok] {output}")
         return text
-    state.console.print(text, end="" if text.endswith("\n") else "\n")
+    typer.echo(text, nl=not text.endswith("\n"))
     return text
 
 
@@ -567,9 +582,14 @@ def release(
 ) -> None:
     """Generate notes and optionally tag / open a GitHub Release draft."""
     try:
+        _, _, release_runner = load_runtime_config()
+        existing_tag = tag_for_version(version)
+        release_to = to_ref or (
+            existing_tag if ref_exists(release_runner, existing_tag) else "HEAD"
+        )
         changelog = generate_changelog(
             from_ref=from_ref,
-            to_ref=to_ref or "HEAD",
+            to_ref=release_to,
             version=version,
             style=None,
             include_all=include_all,
@@ -580,7 +600,7 @@ def release(
         )
         config, _, runner = load_runtime_config()
         body = render_github_release(changelog, config)
-        state.console.print(body, end="")
+        typer.echo(body, nl=False)
         tag_name = tag_for_version(version)
         if tag:
             if not ref_exists(runner, tag_name):
@@ -647,8 +667,7 @@ def run_release_from_env(env: dict[str, str], changelog_text: str) -> str | None
     if not version:
         raise UsageError("create-release requires a version or a tag ref")
     tag_name = version if version.startswith("v") else f"v{version.lstrip('v')}"
-    draft = env.get("PATCHNOTE_DRAFT", "true")
-    is_draft = draft.strip().lower() not in {"false", "0", "no", "off"}
+    is_draft = True
     publish = env.get("PATCHNOTE_PUBLISH", "")
     if publish.strip().lower() in {"1", "true", "yes", "on"}:
         is_draft = False

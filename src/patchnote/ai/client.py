@@ -42,16 +42,16 @@ class LLMClient:
         try:
             response = self._http.post(url, headers=headers, json=body, timeout=self.timeout)
         except httpx.HTTPError as exc:
-            raise LLMError(f"LLM request failed: {exc}") from exc
+            raise LLMError(f"LLM request failed: {type(exc).__name__}") from exc
         # Some local servers (older Ollama) reject response_format. Retry once.
         if response.status_code in {400, 422} and "response_format" in (response.text or ""):
             body.pop("response_format", None)
             try:
                 response = self._http.post(url, headers=headers, json=body, timeout=self.timeout)
             except httpx.HTTPError as exc:
-                raise LLMError(f"LLM request failed: {exc}") from exc
+                raise LLMError(f"LLM request failed: {type(exc).__name__}") from exc
         if response.status_code >= 400:
-            raise LLMError(f"LLM HTTP {response.status_code}: {response.text[:300]}")
+            raise LLMError(f"LLM HTTP {response.status_code}")
         try:
             payload = response.json()
         except ValueError as exc:

@@ -85,11 +85,11 @@ def iter_ordered_sections(
 def render_section_body(changelog: Changelog, config: Config) -> str:
     """Render just the version section (no file-level header)."""
     lines: list[str] = []
+    lines.append(heading(changelog))
+    lines.append("")
     if changelog.overview:
         lines.append(changelog.overview.rstrip())
         lines.append("")
-    lines.append(heading(changelog))
-    lines.append("")
     if changelog.breaking:
         lines.append(f"### {config.breaking_section}")
         lines.append("")

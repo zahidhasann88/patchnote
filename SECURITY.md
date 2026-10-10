@@ -4,8 +4,7 @@
 
 Please **do not** open a public issue for security problems.
 
-Email the maintainer at **security@example.com** (replace this address before
-publishing) with a description of the issue, steps to reproduce, and any
+Email the maintainer at **jahidhasann67@gmail.com** with a description of the issue, steps to reproduce, and any
 proof-of-concept. You should receive an acknowledgement within 7 days.
 
 We will:
@@ -59,8 +58,9 @@ is attacker-controlled text. Defences:
 2. **No PR bodies by default.** Bodies are the highest-bandwidth injection
    channel; they stay local unless you pass `--ai-include-bodies`.
 3. **Output validation.** The model must return JSON with exactly the same
-   entry `id`s, in the same order. It cannot add entries, drop entries, change
-   PR numbers, or change commit hashes. Any violation (or any HTTP error)
+   entry `id`s, in the same order. It cannot add entries, drop entries, or change structured
+   PR numbers or commit hashes. New `#number` references in rewritten summaries are rejected;
+   structural validation cannot prove that prose is truthful. Any violation (or any HTTP error)
    discards the model output for the affected step and keeps the rule-based
    text, with a warning on stderr.
 4. **Classification is local.** The LLM is not asked to decide what belongs in

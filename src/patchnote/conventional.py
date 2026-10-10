@@ -83,24 +83,13 @@ def _parse_footers(body: str) -> tuple[str, list[Footer]]:
     if not body.strip():
         return "", []
     lines = body.splitlines()
-    # Footers are a trailing block separated by a blank line.
-    # Walk from the end while lines look like footers.
     footer_start: int | None = None
-    i = len(lines) - 1
-    while i >= 0:
-        stripped = lines[i].strip()
-        if not stripped:
-            if footer_start is not None:
-                i -= 1
-                continue
-            break
-        if FOOTER_RE.match(stripped) or (
-            footer_start is not None and lines[i].startswith((" ", "\t"))
+    for index, line in enumerate(lines):
+        if FOOTER_RE.match(line.strip()) and (
+            index == 0 or not lines[index - 1].strip() or line.startswith("BREAKING")
         ):
-            footer_start = i
-            i -= 1
-            continue
-        break
+            footer_start = index
+            break
     if footer_start is None:
         return body.strip("\n"), []
     raw_body = "\n".join(lines[:footer_start]).strip("\n")
@@ -142,7 +131,12 @@ def parse_commit(commit: Commit) -> ParsedCommit:
     subject = commit.subject.strip()
     body = commit.body.strip("\n")
     match = HEADER_RE.match(subject) or HEADER_LOOSE_RE.match(subject)
-    pr_numbers = extract_pr_numbers(f"{subject}\n{body}")
+    pr_numbers = list(
+        dict.fromkeys(int(match.group(1)) for match in PR_PARENS_RE.finditer(subject))
+    )
+    merge_pr = MERGE_PR_RE.match(subject)
+    if merge_pr and int(merge_pr.group(1)) not in pr_numbers:
+        pr_numbers.append(int(merge_pr.group(1)))
 
     if match:
         ctype = match.group("type").lower()

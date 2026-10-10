@@ -2,7 +2,7 @@
 
 **Turn git commits and merged pull requests into clean, human-readable changelogs and release notes.**
 
-Patchnote is a Python CLI and GitHub Action. It groups history with Conventional Commits, PR labels, and conservative keyword heuristics, then writes [Keep a Changelog](https://keepachangelog.com/) (or conventional-changelog) markdown, JSON, or a GitHub Release body. An optional LLM step can polish wording. **The rule-based path is the product; AI is an enhancement, not a requirement.** There is no cloud account, no model, and no network call in the default `patchnote generate`.
+Patchnote is a Python CLI and GitHub Action. It groups history with Conventional Commits, PR labels, and conservative keyword heuristics, then writes [Keep a Changelog](https://keepachangelog.com/) (or conventional-changelog) markdown, JSON, or a GitHub Release body. An optional LLM step can polish wording. **The rule-based path is the product; AI is an enhancement, not a requirement.** AI is off by default. Generation reads local Git history; when a GitHub token is present, it also requests PR metadata.
 
 ## The problem
 
@@ -10,7 +10,7 @@ Release notes are either tedious (hand-written, then stale) or noisy (`git log -
 
 ## Install
 
-Python 3.10+ and a `git` binary on `PATH`.
+Python 3.10+ and a `git` binary on `PATH`. Until the first PyPI release, install from this checkout with `pip install .`.
 
 ```bash
 # isolated CLI
@@ -43,9 +43,9 @@ patchnote check --from v1.3.0           # CI linter for commit messages
 patchnote release --version 1.4.0 --tag --push-release   # draft GH release; never publishes without --publish
 ```
 
-Default range is *latest tag matching `v*`* → `HEAD`. If there are no tags, Patchnote uses the full history. Empty ranges produce an empty section, not an error.
+Default range is *latest reachable tag matching `v*`* → `HEAD`. If there are no tags, Patchnote uses the full history. Empty ranges produce an empty section, not an error. With `--to vX.Y.Z`, the current tag is excluded from the default starting tag, so a tag-triggered release includes its changes.
 
-Global flags: `--config`, `--repo`, `--no-color`, `--verbose`, `--version`.
+Global flags: `--config`, `--repo`, `--no-color`, `--verbose`, `--version`. Place global flags before the command, for example `patchnote --repo path/to/repo generate`.
 
 Exit codes: `0` success, `1` `check` found violations, `2` usage or config error, `3` runtime error (git or network).
 
@@ -66,7 +66,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: YOUR_NAME/patchnote@v0.1.0
+      - uses: zahidhasann88/patchnote@v0.1.0
         with:
           version: ${{ github.ref_name }}
           create-release: true
@@ -81,7 +81,7 @@ The action is **composite**: it sets up Python, `pip install`s Patchnote from th
 | `ai` | `none` | `none` \| `polish` \| `summary` \| `both` |
 | `ai-base-url`, `ai-model`, `ai-api-key` | (config / empty) | Key is a secret input, never echoed |
 | `output-file`, `prepend` | empty / `false` | Prepend is idempotent per version |
-| `create-release`, `draft` | `false` / `true` | Draft unless `publish: true` |
+| `create-release`, `draft`, `publish` | `false` / `true` / `false` | Publication requires `publish: true`, even if `draft: false` |
 | `github-token` | `${{ github.token }}` | Used for PR enrichment and releases |
 
 Outputs: `changelog`, `release-url`, `unreleased-entries`.
@@ -192,7 +192,7 @@ The model **only rewrites entries that were already classified**. It is sent a J
 
 Commit messages and PR titles are **untrusted**. They are placed in a delimited data block; PR bodies are not sent unless `--ai-include-bodies`. See [SECURITY.md](SECURITY.md) for the full threat model.
 
-Before the first call Patchnote prints the endpoint, model, and what will be sent, and waits, unless `--yes`. Non-interactive sessions without `--yes` refuse to call the LLM. Responses are cached by content hash under `.patchnote-cache/` so re-runs are free and deterministic. API keys are never logged or written to files.
+Before the first call Patchnote prints the endpoint, model, and what will be sent, and waits, unless `--yes`. Non-interactive sessions without `--yes` refuse to call the LLM. Responses are cached by content hash under `.patchnote-cache/`; a matching validated response is reused. API keys are not included in prompts, caches, or generated notes. Reports still contain commit text and contributor details; review them before sharing.
 
 ## Configuration
 
@@ -200,21 +200,16 @@ Before the first call Patchnote prints the endpoint, model, and what will be sen
 
 A Jinja2 template can replace the markdown renderer (`template: path/to/file.j2`). The default template ships inside the package.
 
-Config is validated with Pydantic v2; errors name the field and the problem.
+Config is validated with Pydantic v2; errors name the field and the problem. Custom templates are trusted code and resolve relative to the configuration file.
 
 ## Comparison
 
-| | Patchnote | [release-drafter](https://github.com/release-drafter/release-drafter) | [git-cliff](https://github.com/orhun/git-cliff) | [conventional-changelog](https://github.com/conventional-changelog/conventional-changelog) |
-| --- | --- | --- | --- | --- |
-| Runs offline on local git | Yes | No (GitHub App) | Yes | Yes |
-| PR labels | Yes (optional token) | Primary input | Limited | No |
-| Conventional Commits | Yes | Via PR titles if you enforce them | Yes | Yes |
-| Heuristics for messy history | Yes, conservative, "Other" rather than guessing | No | Configurable parsers | No |
-| LLM polish with validated output | Optional, off by default | No | No | No |
-| GitHub Action | First-class composite | First-class | Community | No |
-| Language | Python | JS (GitHub App) | Rust | JS |
-
-Honest limitations vs. those tools: git-cliff's Tera templates are more powerful than Patchnote's Jinja default. release-drafter's label automation on GitHub is more mature. conventional-changelog has a larger plugin ecosystem. Patchnote's pitch is "one binary that is good without AI, safe with AI, and usable as an action before it is even on PyPI."
+Related tools include [release-drafter](https://github.com/release-drafter/release-drafter),
+[git-cliff](https://github.com/orhun/git-cliff), and
+[conventional-changelog](https://github.com/conventional-changelog/conventional-changelog).
+Patchnote focuses on local Git history, optional PR enrichment, a Python API, and optional
+LLM rewriting with structural validation. Compare the tools against your release workflow;
+Patchnote does not attempt to cover every template, integration, or ecosystem.
 
 ## Limitations
 
@@ -231,10 +226,22 @@ Honest limitations vs. those tools: git-cliff's Tera templates are more powerful
 - `patchnote explain` — show why each entry landed in its section
 - Action marketplace listing (needs a public repo and icon assets)
 
+## Local verification
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe tools/demo.py
+```
+
+The demo creates a temporary Git repository, checks all formats and idempotent prepend,
+and exercises valid and rejected responses from a local fake LLM. Its reports are saved
+in `demo-output/`. No GitHub token or real LLM is used.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Please follow the [Code of Conduct](CODE_OF_CONDUCT.md). Security reports: [SECURITY.md](SECURITY.md).
 
 ## License
 
-[MIT](LICENSE) © 2026 YOUR NAME
+[MIT](LICENSE) © 2026 Zahid Hasan

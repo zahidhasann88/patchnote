@@ -49,7 +49,7 @@ def test_breaking_change_footer() -> None:
     assert parsed.breaking
     keys = {f.key: f.value for f in parsed.footers}
     assert "Thing is now Stuff" in keys["BREAKING CHANGE"]
-    assert parsed.pr_numbers == [12]
+    assert parsed.pr_numbers == []  # Fixes #12 references an issue, not a PR
 
 
 def test_breaking_hyphen_footer() -> None:

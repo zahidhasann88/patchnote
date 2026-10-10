@@ -27,7 +27,7 @@ def test_build_argv_maps_env() -> None:
     assert "--ai" in argv and "polish" in argv
     assert "--prepend" in argv
     # Secrets must not be interpolated into a shell string — we only pass argv lists.
-    assert "ghs_secret" in argv  # passed as an argument, not a shell interpolation
+    assert "ghs_secret" not in argv  # credentials stay in the environment
 
 
 def test_run_action_writes_github_output(repo: Path, tmp_path: Path, monkeypatch: object) -> None:

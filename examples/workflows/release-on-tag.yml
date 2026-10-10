@@ -16,12 +16,12 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Generate notes and create a draft release
-        uses: YOUR_NAME/patchnote@v0.1.0
+        uses: zahidhasann88/patchnote@v0.1.0
         with:
           version: ${{ github.ref_name }}
           create-release: true

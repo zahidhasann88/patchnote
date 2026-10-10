@@ -5,27 +5,23 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
-        exclude: ^action\.yml$
       - id: check-added-large-files
       - id: check-merge-conflict
-
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.6
+  - repo: local
     hooks:
-      - id: ruff
-        args: [--fix]
+      - id: ruff-check
+        name: ruff check
+        entry: python -m ruff check
+        language: system
+        types: [python]
       - id: ruff-format
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
-    hooks:
+        name: ruff format
+        entry: python -m ruff format --check
+        language: system
+        types: [python]
       - id: mypy
-        additional_dependencies:
-          - pydantic>=2.7
-          - types-pyyaml
-          - typer
-          - rich
-          - httpx
-          - jinja2
-        args: [--config-file=pyproject.toml]
+        name: mypy
+        entry: python -m mypy src
+        language: system
+        pass_filenames: false
         files: ^src/

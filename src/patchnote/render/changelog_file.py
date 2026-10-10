@@ -95,67 +95,44 @@ def prepend_release(
             footer = _upsert_link(footer, changelog.version or "Unreleased", changelog.compare_url)
         return body.rstrip() + "\n\n" + footer if footer else body
 
-    text = existing
-    if not text.endswith("\n"):
-        text += "\n"
-    body, link_footer = _split_link_footer(text)
+    newline = "\r\n" if "\r\n" in existing else "\n"
+    section = section.replace("\n", newline).rstrip("\r\n") + newline * 2
+    body, link_footer = _split_link_footer(existing)
     version = changelog.version or "Unreleased"
     found = _find_section(body, version)
     if found is not None:
         start, end = found
-        # Preserve a single blank line after the replaced section.
-        new_body = body[:start] + section
-        rest = body[end:]
-        if (
-            rest
-            and not rest.startswith("\n")
-            and not section.endswith("\n\n")
-            and not rest.startswith("##")
-        ):
-            new_body += "\n"
-        if rest.startswith("\n"):
-            rest = rest.lstrip("\n")
-            new_body += "\n" + rest
-        else:
-            if rest:
-                new_body += "\n" + rest if not new_body.endswith("\n") else rest
-        body = new_body
+        if end == len(body) and link_footer.startswith(("\n", "\r")):
+            section = section.rstrip("\r\n") + newline
+        body = body[:start] + section + body[end:]
     else:
         unreleased = _find_section(body, "Unreleased")
+        first_version = VERSION_HEADER_RE.search(body)
         if unreleased is not None:
-            _, end = unreleased
-            insert_at = end
-            prefix = body[:insert_at].rstrip() + "\n\n"
-            suffix = body[insert_at:].lstrip("\n")
-            body = prefix + section + ("\n" + suffix if suffix else "")
+            at = unreleased[1]
+        elif first_version is not None:
+            at = first_version.start()
         else:
-            # After the first heading block / intro paragraph.
-            first_version = VERSION_HEADER_RE.search(body)
-            if first_version:
-                at = first_version.start()
-                prefix = body[:at]
-                if prefix and not prefix.endswith("\n\n"):
-                    prefix = prefix.rstrip() + "\n\n"
-                body = prefix + section + "\n" + body[at:].lstrip("\n")
-            else:
-                header = config.header.rstrip() + "\n\n" if config.header else ""
-                body = body.rstrip() + "\n\n" + section if body.strip() else header + section
-
+            at = len(body)
+        prefix, suffix = body[:at], body[at:]
+        separator = "" if not prefix or prefix.endswith(newline * 2) else newline * 2
+        body = prefix + separator + section + suffix
     if changelog.compare_url:
-        link_footer = _upsert_link(
-            link_footer, changelog.version or "Unreleased", changelog.compare_url
-        )
-    result = body.rstrip() + "\n"
-    if link_footer.strip():
-        if not link_footer.startswith("\n"):
-            result += "\n"
-        result += link_footer if link_footer.endswith("\n") else link_footer + "\n"
-    return result
+        label = changelog.version or "Unreleased"
+        pattern = re.compile(rf"^\[{re.escape(label)}\]:[^\r\n]*(?:\r?\n|$)", re.MULTILINE)
+        line = f"[{label}]: {changelog.compare_url}{newline}"
+        if pattern.search(link_footer):
+            link_footer = pattern.sub(lambda _match: line, link_footer, count=1)
+        else:
+            if link_footer and not link_footer.endswith(("\n", "\r")):
+                link_footer += newline
+            link_footer += line
+    return body + link_footer
 
 
 def write_prepend(path: Path, changelog: Changelog, config: Config) -> str:
-    existing = path.read_text(encoding="utf-8") if path.exists() else ""
+    existing = path.read_bytes().decode("utf-8") if path.exists() else ""
     updated = prepend_release(existing, changelog, config)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(updated, encoding="utf-8")
+    path.write_bytes(updated.encode("utf-8"))
     return updated

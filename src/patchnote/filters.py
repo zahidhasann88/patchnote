@@ -70,8 +70,10 @@ def parse_and_filter(
             if config.bots.skip and not include_all:
                 continue
             bots.append(parsed)
-            if config.bots.collapse and not include_all:
+            if config.bots.collapse and not include_all and not parsed.breaking:
                 continue
+            if parsed.breaking:
+                bots.pop()
         if parsed.type and parsed.type in config.skip_types and not include_all:
             # A later label can rescue this commit; keep it tagged.
             parsed_skip = parsed.model_copy()
@@ -93,6 +95,8 @@ def collapse_reverts(parsed: list[ParsedCommit]) -> list[ParsedCommit]:
     by_short = {item.raw.short_hash.lower(): item for item in parsed}
     drop: set[str] = set()
     for item in parsed:
+        if item.raw.hash in drop:
+            continue
         reverted = item.reverted_hash
         is_revert = item.type == "revert" or reverted is not None
         if not is_revert or not reverted:

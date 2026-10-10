@@ -82,9 +82,6 @@ def test_keepachangelog_markdown_golden() -> None:
     config = parse_config({})
     text = render_markdown(sample_changelog(), config)
     golden = GOLDEN / "keepachangelog.md"
-    if not golden.exists():
-        golden.parent.mkdir(parents=True, exist_ok=True)
-        golden.write_text(text, encoding="utf-8")
     assert text == golden.read_text(encoding="utf-8")
 
 
@@ -95,8 +92,6 @@ def test_github_release_omits_h2() -> None:
     assert "### Breaking Changes" in text
     assert "### Added" in text
     golden = GOLDEN / "github-release.md"
-    if not golden.exists():
-        golden.write_text(text, encoding="utf-8")
     assert text == golden.read_text(encoding="utf-8")
 
 
@@ -105,8 +100,6 @@ def test_json_roundtrip() -> None:
     assert '"version": "1.4.0"' in text
     assert "Add widgets" in text
     golden = GOLDEN / "changelog.json"
-    if not golden.exists():
-        golden.write_text(text, encoding="utf-8")
     assert text == golden.read_text(encoding="utf-8")
 
 
@@ -118,8 +111,6 @@ def test_conventional_style_headings() -> None:
     assert "### Features" in text
     assert "### Bug Fixes" in text
     golden = GOLDEN / "conventional.md"
-    if not golden.exists():
-        golden.write_text(text, encoding="utf-8")
     assert text == golden.read_text(encoding="utf-8")
 
 

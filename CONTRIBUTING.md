@@ -8,7 +8,7 @@ of truth.
 Python 3.10 or newer and a `git` binary on `PATH` are required.
 
 ```bash
-git clone https://github.com/YOUR_NAME/patchnote.git
+git clone https://github.com/zahidhasann88/patchnote.git
 cd patchnote
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
@@ -64,9 +64,11 @@ chore: bump ruff
 
 Tags matching `v*` trigger `.github/workflows/release.yml`:
 
-1. Build the sdist and wheel.
-2. Publish to PyPI with trusted publishing (OIDC).
-3. Generate notes with the local composite action and open a GitHub Release.
+1. Validate that the tag, `pyproject.toml`, and `src/patchnote/__init__.py` versions match.
+2. Run lint, types and tests, build distributions, and install the wheel in a clean environment.
+3. Generate notes with the local composite action and attach assets to a GitHub Release.
+4. Publish to PyPI using OIDC only when `PUBLISH_TO_PYPI` is `true`. Configure the
+   matching trusted publisher and GitHub `pypi` environment before enabling it.
 
 ## License
 

@@ -61,7 +61,10 @@ def _polish(
     except (LLMError, ValidationFailure) as exc:
         warn(f"AI polish failed ({exc}); using rule-based text")
         return changelog
-    cache.put(cache_key, {"entries": rewritten})
+    try:
+        cache.put(cache_key, {"entries": rewritten})
+    except OSError:
+        warn("Could not write AI cache; keeping the validated response")
     return _apply_rewrites(changelog, rewritten)
 
 
@@ -92,7 +95,10 @@ def _summarize(
     except (LLMError, ValidationFailure) as exc:
         warn(f"AI summary failed ({exc}); omitting overview")
         return changelog
-    cache.put(cache_key, {"overview": overview})
+    try:
+        cache.put(cache_key, {"overview": overview})
+    except OSError:
+        warn("Could not write AI cache; keeping the validated response")
     return changelog.model_copy(update={"overview": overview})
 
 

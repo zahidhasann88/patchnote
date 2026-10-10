@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: Security report
-    url: https://github.com/YOUR_NAME/patchnote/security/advisories/new
+    url: https://github.com/zahidhasann88/patchnote/security/advisories/new
     about: Please do not file public issues for vulnerabilities. See SECURITY.md.

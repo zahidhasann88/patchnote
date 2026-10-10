@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from patchnote.model import Commit, GitError
+from patchnote.model import Commit, GitError, UsageError
 
 FIELD_SEP = "\x1f"
 RECORD_SEP = "\x1e"
@@ -128,8 +128,11 @@ def list_commits(runner: GitRunner, from_ref: str | None, to_ref: str) -> list[C
 
     When ``from_ref`` is None, the full history reachable from ``to_ref`` is used.
     """
+    for ref in (from_ref, to_ref):
+        if ref and ref.startswith("-"):
+            raise UsageError("Git references must not start with a dash")
     rev_range = f"{from_ref}..{to_ref}" if from_ref else to_ref
-    raw = runner.run(["log", f"--pretty=format:{PRETTY}", "--date=iso-strict", rev_range])
+    raw = runner.run(["log", f"--pretty=format:{PRETTY}", "--date=iso-strict", rev_range, "--"])
     return parse_log_output(raw)
 
 
@@ -164,7 +167,11 @@ def resolve_ref(runner: GitRunner, ref: str) -> str:
 
 
 def ref_exists(runner: GitRunner, ref: str) -> bool:
-    return runner.run_ok(["rev-parse", "--verify", "--quiet", ref])
+    if ref.startswith("-"):
+        return False
+    return runner.run_ok(
+        ["rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref}^{{commit}}"]
+    )
 
 
 def tag_date(runner: GitRunner, tag: str) -> date | None:
