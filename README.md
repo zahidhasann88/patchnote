@@ -49,6 +49,8 @@ Global flags: `--config`, `--repo`, `--no-color`, `--verbose`, `--version`. Plac
 
 Exit codes: `0` success, `1` `check` found violations, `2` usage or config error, `3` runtime error (git or network).
 
+![Patchnote generating release notes from local Git history](docs/screenshots/demo.png)
+
 ## GitHub Action quickstart
 
 ```yaml
