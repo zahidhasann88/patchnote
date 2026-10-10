@@ -1,0 +1,29 @@
+# Create a GitHub Release with generated notes when a version tag is pushed.
+#
+# Least privilege: contents: write is required to create the release.
+# Pull-request enrichment uses the default GITHUB_TOKEN (contents: read is enough
+# for that; write is only needed because we also create the release).
+name: Release
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate notes and create a draft release
+        uses: YOUR_NAME/patchnote@v0.1.0
+        with:
+          version: ${{ github.ref_name }}
+          create-release: true
+          draft: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}

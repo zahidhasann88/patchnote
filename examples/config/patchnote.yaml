@@ -1,0 +1,60 @@
+# Example Patchnote configuration. Copy to the repository root as patchnote.yaml
+# or generate one with `patchnote init`.
+style: keepachangelog
+tag_pattern: "v*"
+
+sections:
+  Added:
+    types: [feat]
+    labels: [enhancement, feature]
+  Changed:
+    types: [perf, refactor]
+    labels: [change]
+  Deprecated:
+    types: []
+    labels: [deprecated]
+  Removed:
+    types: []
+    labels: [removed]
+  Fixed:
+    types: [fix]
+    labels: [bug, bugfix]
+  Security:
+    types: []
+    labels: [security]
+
+skip_types: [chore, ci, test, docs, build, style]
+
+ignore_patterns:
+  - "\\[skip changelog\\]"
+  - "\\[changelog skip\\]"
+  - "^Merge branch "
+  - "^Merge pull request "
+
+skip_merge_commits: true
+
+bots:
+  skip: false
+  collapse: true
+  patterns:
+    - dependabot
+    - renovate
+    - "\\[bot\\]"
+  section: Changed
+
+include_contributors: true
+mark_first_time_contributors: true
+trailing_period: false
+sentence_case: true
+
+ai:
+  enabled: false
+  base_url: https://api.openai.com/v1
+  model: gpt-4o-mini
+  api_key_env: OPENAI_API_KEY
+  include_bodies: false
+  cache_dir: .patchnote-cache
+
+check:
+  require_conventional: true
+  allow_merge: true

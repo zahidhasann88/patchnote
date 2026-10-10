@@ -1,0 +1,123 @@
+name: Patchnote
+description: Generate changelogs and release notes from git history and pull requests.
+author: YOUR NAME
+branding:
+  icon: file-text
+  color: purple
+
+inputs:
+  from:
+    description: Start ref (exclusive). Defaults to the latest tag matching the configured pattern.
+    required: false
+    default: ""
+  to:
+    description: End ref (inclusive). Defaults to HEAD.
+    required: false
+    default: ""
+  version:
+    description: Version heading written into the changelog (e.g. 1.4.0).
+    required: false
+    default: ""
+  style:
+    description: Grouping style — keepachangelog or conventional.
+    required: false
+    default: ""
+  ai:
+    description: Optional LLM rewrite — none, polish, summary, or both.
+    required: false
+    default: none
+  ai-base-url:
+    description: OpenAI-compatible base URL (for example https://api.openai.com/v1 or http://localhost:11434/v1).
+    required: false
+    default: ""
+  ai-model:
+    description: Model name for the OpenAI-compatible endpoint.
+    required: false
+    default: ""
+  output-file:
+    description: If set, write the generated notes to this path.
+    required: false
+    default: ""
+  prepend:
+    description: Insert the new release into an existing Keep a Changelog file at output-file.
+    required: false
+    default: "false"
+  create-release:
+    description: Create or update a GitHub Release with the generated notes.
+    required: false
+    default: "false"
+  draft:
+    description: Leave the GitHub Release as a draft (ignored unless create-release is true).
+    required: false
+    default: "true"
+  config-path:
+    description: Path to patchnote.yaml.
+    required: false
+    default: ""
+  github-token:
+    description: Token used for PR enrichment and (optionally) creating a release. Never echoed.
+    required: false
+    default: "${{ github.token }}"
+  ai-api-key:
+    description: Secret API key for the LLM provider. Never echoed. Read from the environment inside the action.
+    required: false
+    default: ""
+  include-all:
+    description: Include chore/ci/test/docs commits that are skipped by default.
+    required: false
+    default: "false"
+  format:
+    description: Output format — markdown, json, or github-release.
+    required: false
+    default: markdown
+  publish:
+    description: Publish the GitHub Release instead of leaving it as a draft.
+    required: false
+    default: "false"
+
+outputs:
+  changelog:
+    description: Generated markdown (or the requested format).
+    value: ${{ steps.run.outputs.changelog }}
+  release-url:
+    description: URL of the created GitHub Release, if any.
+    value: ${{ steps.run.outputs.release-url }}
+  unreleased-entries:
+    description: Count of changelog bullet entries in the generated notes.
+    value: ${{ steps.run.outputs.unreleased-entries }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install patchnote from this action
+      shell: bash
+      run: python -m pip install --disable-pip-version-check "$GITHUB_ACTION_PATH"
+
+    - name: Generate changelog
+      id: run
+      shell: bash
+      env:
+        PATCHNOTE_FROM: ${{ inputs.from }}
+        PATCHNOTE_TO: ${{ inputs.to }}
+        PATCHNOTE_VERSION: ${{ inputs.version }}
+        PATCHNOTE_STYLE: ${{ inputs.style }}
+        PATCHNOTE_AI: ${{ inputs.ai }}
+        PATCHNOTE_AI_BASE_URL: ${{ inputs.ai-base-url }}
+        PATCHNOTE_AI_MODEL: ${{ inputs.ai-model }}
+        PATCHNOTE_OUTPUT: ${{ inputs.output-file }}
+        PATCHNOTE_PREPEND: ${{ inputs.prepend }}
+        PATCHNOTE_CREATE_RELEASE: ${{ inputs.create-release }}
+        PATCHNOTE_DRAFT: ${{ inputs.draft }}
+        PATCHNOTE_PUBLISH: ${{ inputs.publish }}
+        PATCHNOTE_CONFIG: ${{ inputs.config-path }}
+        PATCHNOTE_TOKEN: ${{ inputs.github-token }}
+        PATCHNOTE_AI_API_KEY: ${{ inputs.ai-api-key }}
+        PATCHNOTE_INCLUDE_ALL: ${{ inputs.include-all }}
+        PATCHNOTE_FORMAT: ${{ inputs.format }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: python -m patchnote.action_entry
