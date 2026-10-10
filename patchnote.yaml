@@ -1,0 +1,30 @@
+# Patchnote configuration for this repository.
+style: keepachangelog
+tag_pattern: "v*"
+
+skip_types: [chore, ci, test, docs, build, style]
+skip_merge_commits: true
+
+bots:
+  collapse: true
+  patterns:
+    - dependabot
+    - renovate
+    - "\\[bot\\]"
+  section: Changed
+
+include_contributors: true
+trailing_period: false
+sentence_case: true
+
+check:
+  require_conventional: true
+  allow_merge: true
+
+ai:
+  enabled: false
+  base_url: https://api.openai.com/v1
+  model: gpt-4o-mini
+  api_key_env: OPENAI_API_KEY
+  include_bodies: false
+  cache_dir: .patchnote-cache
