@@ -1,0 +1,43 @@
+{%- if include_header %}
+{{ header }}
+{% endif %}
+{%- if changelog.overview %}
+{{ changelog.overview }}
+
+{% endif %}
+## {% if changelog.version %}[{% if changelog.version %}{{ changelog.version }}{% endif %}]{% else %}[Unreleased]{% endif %}{% if changelog.version %} - {{ changelog.date.isoformat() }}{% endif %}
+
+{%- if changelog.breaking %}
+
+### {{ breaking_section }}
+
+{% for entry in changelog.breaking -%}
+- {{ render_entry(entry) }}
+{% endfor %}
+{%- endif %}
+
+{%- for name, entries in iter_sections() %}
+
+### {{ name }}
+
+{% for entry in entries -%}
+- {{ render_entry(entry) }}
+{% endfor %}
+{%- endfor %}
+
+{%- if changelog.contributors and include_contributors %}
+
+### Contributors
+
+{% for person in changelog.contributors -%}
+- {{ person.name }}{% if person.first_time %} (first-time contributor){% endif %}
+{% endfor %}
+{%- endif %}
+{%- if changelog.compare_url %}
+
+[{{ changelog.version or "Unreleased" }}]: {{ changelog.compare_url }}
+{%- endif %}
+{%- if footer %}
+
+{{ footer }}
+{%- endif %}
